@@ -1,0 +1,7 @@
+# This file controls automatic PR reviewer assignment. See:
+#
+# * https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# See OWNERS.md for governance details.
+
+*    @jonasz-lasut
