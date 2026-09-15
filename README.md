@@ -1,5 +1,9 @@
 # function-sdk-rust
 
+[![Build Status](https://github.com/crossplane/function-sdk-rust/actions/workflows/ci.yml/badge.svg)](https://github.com/crossplane/function-sdk-rust/actions)
+[![Crates.io](https://img.shields.io/crates/v/function-sdk-rust.svg)](https://crates.io/crates/function-sdk-rust)
+[![Documentation](https://docs.rs/function-sdk-rust/badge.svg)](https://docs.rs/function-sdk-rust)
+
 A Rust SDK for writing [Crossplane][crossplane] [composition functions][functions].
 
 Modeled on [function-sdk-python] and [function-sdk-go]. A composition function
