@@ -18,5 +18,5 @@ API. This crate provides:
   `serde::Serialize` source.
 - `logging` - JSON-lines logging with a human-readable debug mode.
 
-See the [repository](https://github.com/jonasz-lasut/function-sdk-rust) for a
+See the [repository](https://github.com/crossplane/function-sdk-rust) for a
 complete example function.
