@@ -16,9 +16,10 @@ for working with requests and responses.
 
 - `sdk/` - the `function-sdk-rust` crate.
   - `proto/v1/run_function.proto` - the vendored protocol definition.
-  - `src/generated/` - checked-in code generated from the proto: prost types,
-    the tonic gRPC server and client, protojson serde impls (pbjson), and the
-    encoded file descriptor set used for gRPC server reflection.
+  - `src/generated/` - checked-in code generated from the proto: prost types
+    (`v1.rs`), the tonic gRPC server and client (`v1.tonic.rs`), protojson
+    serde impls from pbjson (`v1.serde.rs`), and the encoded file descriptor
+    set used for gRPC server reflection (`fileset.bin`).
   - `src/{server,request,response,resource,logging}.rs` - the hand-written
     SDK: runtime and helpers.
 - `codegen/` - maintainer tool that regenerates `sdk/src/generated`.
