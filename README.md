@@ -61,6 +61,20 @@ impl FunctionRunnerService for Function {
 
 See `example/` for a complete function with a CLI entrypoint.
 
+## Features
+
+The server side is the crate's `server` feature, on by default: `serve` and
+`Args`, `logging`, the generated tonic client and server under `proto::v1`,
+`proto::FILE_DESCRIPTOR_SET`, and the dependencies behind them (tokio, tonic
+with its TLS stack, clap, prometheus-client). A function built on the SDK
+keeps all of it.
+
+With `default-features = false` the crate is the protocol messages plus the
+`request`, `response` and `resource` helpers. That set builds for WebAssembly
+targets, where tokio and the TLS stack do not, and is what a function compiled
+to a WebAssembly module depends on: [function-wasm]'s Rust scaffold, for one,
+whose host serves the gRPC side.
+
 ## Development
 
 ```shell
@@ -124,6 +138,7 @@ with a few deliberate differences:
 [functions]: https://docs.crossplane.io/latest/composition/compositions/
 [function-sdk-python]: https://github.com/crossplane/function-sdk-python
 [function-sdk-go]: https://github.com/crossplane/function-sdk-go
+[function-wasm]: https://github.com/jonasz-lasut/function-wasm
 [spec]: https://github.com/crossplane/crossplane/blob/main/contributing/specifications/functions.md
 [proto]: https://github.com/crossplane/crossplane/tree/main/proto/fn/v1
 [tonic-prometheus-layer]: https://crates.io/crates/tonic-prometheus-layer

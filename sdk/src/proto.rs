@@ -3,13 +3,16 @@
 //!
 //! Regenerate with `cargo run -p codegen` after changing the vendored proto.
 
-/// Types and the gRPC client and server for the v1 FunctionRunnerService API.
+/// Types and, with the `server` feature, the gRPC client and server for the
+/// v1 FunctionRunnerService API.
 pub mod v1 {
     #![allow(clippy::all, clippy::pedantic)]
     include!("generated/v1.rs");
     include!("generated/v1.serde.rs");
+    #[cfg(feature = "server")]
     include!("generated/v1.tonic.rs");
 }
 
 /// Encoded FileDescriptorSet of the v1 API, used for gRPC server reflection.
+#[cfg(feature = "server")]
 pub const FILE_DESCRIPTOR_SET: &[u8] = include_bytes!("generated/fileset.bin");

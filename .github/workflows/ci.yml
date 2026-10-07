@@ -36,6 +36,22 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - run: cargo test --workspace
 
+  # Without its default server feature the SDK is the messages and the
+  # helpers, which a WebAssembly guest depends on: they must keep building
+  # natively and for wasm, where the server's dependencies do not.
+  no-server:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          components: clippy
+          targets: wasm32-wasip1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - run: cargo clippy -p function-sdk-rust --no-default-features --tests -- -D warnings
+      - run: cargo test -p function-sdk-rust --no-default-features
+      - run: cargo build -p function-sdk-rust --no-default-features --target wasm32-wasip1
+
   # The generated code in sdk/src/generated is checked in. Verify it matches
   # what the codegen tool produces from the vendored proto. Only the .rs
   # outputs are compared; the encoded descriptor set may differ byte-wise

@@ -9,28 +9,61 @@ readme = "README.md"
 keywords = ["crossplane", "kubernetes", "grpc"]
 categories = ["api-bindings"]
 
+# The server side (server.rs, metrics.rs, logging.rs, the generated tonic
+# client and server, FILE_DESCRIPTOR_SET) is a default feature. Without it
+# (default-features = false) the crate is the protocol messages and the
+# request/response/resource helpers, which also build for WebAssembly targets,
+# where tokio and the TLS stack behind tonic do not: what a function compiled
+# to a WebAssembly module depends on.
+[features]
+default = ["server"]
+server = [
+    "dep:bytes",
+    "dep:clap",
+    "dep:http",
+    "dep:http-body",
+    "dep:prometheus-client",
+    "dep:tokio",
+    "dep:tonic",
+    "dep:tonic-health",
+    "dep:tonic-prost",
+    "dep:tonic-reflection",
+    "dep:tower-layer",
+    "dep:tower-service",
+    "dep:tracing",
+    "dep:tracing-subscriber",
+]
+
 [dependencies]
-bytes = "1"
-http = "1"
-http-body = "1"
-prometheus-client = "0.25"
-tonic = { version = "0.14", features = ["tls-aws-lc"] }
-tonic-prost = "0.14"
-tonic-health = "0.14"
-tonic-reflection = "0.14"
+# The messages and the helpers: every feature set, every target.
 prost = "0.14"
 pbjson = "0.9"
 pbjson-types = "0.9"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
-clap = { version = "4", features = ["derive", "env"] }
-tracing = "0.1"
-tower-layer = "0.3"
-tower-service = "0.3"
-tracing-subscriber = { version = "0.3", features = ["json"] }
 sha2 = "0.11"
 thiserror = "2"
 
+# The server side, with the server feature.
+bytes = { version = "1", optional = true }
+clap = { version = "4", features = ["derive", "env"], optional = true }
+http = { version = "1", optional = true }
+http-body = { version = "1", optional = true }
+prometheus-client = { version = "0.25", optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"], optional = true }
+tonic = { version = "0.14", features = ["tls-aws-lc"], optional = true }
+tonic-health = { version = "0.14", optional = true }
+tonic-prost = { version = "0.14", optional = true }
+tonic-reflection = { version = "0.14", optional = true }
+tower-layer = { version = "0.3", optional = true }
+tower-service = { version = "0.3", optional = true }
+tracing = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", features = ["json"], optional = true }
+
 [dev-dependencies]
 tokio-test = "0.4"
+
+# The serving test needs the server it serves with.
+[[test]]
+name = "serve"
+required-features = ["server"]
