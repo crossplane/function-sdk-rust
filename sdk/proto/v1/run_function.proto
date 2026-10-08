@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-// Vendored from crossplane/crossplane v2.4.0. To update: bump the version
+// Vendored from crossplane/crossplane v2.4.2. To update: bump the version
 // above, re-download this file from
 // https://github.com/crossplane/crossplane/blob/main/proto/fn/v1/run_function.proto,
 // and re-run `cargo run -p codegen`.
