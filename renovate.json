@@ -1,6 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", "docker:pinDigests", "helpers:pinGitHubActionDigests"],
+  "packageRules": [
+    {
+      "description": "Update the example function's build and runtime images in one PR",
+      "matchManagers": ["dockerfile"],
+      "matchFileNames": ["example/Dockerfile"],
+      "groupName": "example function images"
+    }
+  ],
   "customManagers": [
     {
       "customType": "regex",
