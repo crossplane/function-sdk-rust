@@ -59,8 +59,10 @@ pub fn warning(rsp: &mut RunFunctionResponse, message: impl Into<String>) -> &mu
 
 /// Adds a fatal result to the response.
 ///
-/// The pipeline run is considered a failure and the first fatal result is
-/// returned as an error, but subsequent pipeline steps may still run.
+/// Crossplane stops the pipeline at the first fatal result: later steps do
+/// not run, and for that reconcile Crossplane applies no desired state and
+/// garbage-collects nothing. The reconcile error carries the message:
+/// `pipeline step "<step>" returned a fatal result: <message>`.
 pub fn fatal(rsp: &mut RunFunctionResponse, message: impl Into<String>) -> &mut FnResult {
     add_result(rsp, Severity::Fatal, message)
 }
