@@ -45,8 +45,7 @@ impl FunctionRunnerService for Function {
         // Copies the request's tag, desired state, and context forward.
         let mut rsp = response::to(&req, response::DEFAULT_TTL);
 
-        let desired = rsp.desired.get_or_insert_default();
-        let bucket = desired.resources.entry("bucket".to_string()).or_default();
+        let bucket = response::desired_composed(&mut rsp, "bucket");
         resource::update(bucket, &serde_json::json!({
             "apiVersion": "s3.aws.upbound.io/v1beta2",
             "kind": "Bucket",

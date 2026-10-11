@@ -232,6 +232,180 @@ fn required_resources_distinguish_unresolved_from_empty() {
 }
 
 #[test]
+fn typed_required_resources_deserialize_items() {
+    #[derive(serde::Deserialize, Debug, PartialEq)]
+    struct Metadata {
+        name: String,
+    }
+    #[derive(serde::Deserialize, Debug, PartialEq)]
+    struct Spec {
+        replicas: i64,
+    }
+    #[derive(serde::Deserialize, Debug, PartialEq)]
+    struct Provider {
+        metadata: Metadata,
+        spec: Spec,
+    }
+
+    // Integers arrive as f64 through structpb, like observed resources.
+    let req: RunFunctionRequest = serde_json::from_str(
+        r#"{"requiredResources": {
+            "providers": {"items": [
+                {"resource": {"metadata": {"name": "aws"}, "spec": {"replicas": 3.0}}},
+                {"resource": {"metadata": {"name": "gcp"}, "spec": {"replicas": 1.0}}}
+            ]}
+        }}"#,
+    )
+    .unwrap();
+
+    let providers: Vec<Provider> = request::get_required_resources_as(&req, "providers")
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        providers,
+        vec![
+            Provider {
+                metadata: Metadata {
+                    name: "aws".to_string()
+                },
+                spec: Spec { replicas: 3 },
+            },
+            Provider {
+                metadata: Metadata {
+                    name: "gcp".to_string()
+                },
+                spec: Spec { replicas: 1 },
+            },
+        ]
+    );
+    let first: Provider = request::get_required_resource_as(&req, "providers")
+        .unwrap()
+        .unwrap();
+    assert_eq!(first.metadata.name, "aws");
+
+    let untyped = request::get_required_resources_as::<serde_json::Value>(&req, "providers");
+    assert_eq!(
+        untyped.unwrap(),
+        request::get_required_resources(&req, "providers")
+    );
+}
+
+#[test]
+fn typed_required_resources_distinguish_unresolved_from_empty() {
+    let req: RunFunctionRequest =
+        serde_json::from_str(r#"{"requiredResources": {"empty": {}}}"#).unwrap();
+
+    let unresolved = request::get_required_resources_as::<serde_json::Value>(&req, "nope");
+    assert_eq!(unresolved.unwrap(), None);
+    let empty = request::get_required_resources_as::<serde_json::Value>(&req, "empty");
+    assert_eq!(empty.unwrap(), Some(vec![]));
+
+    let unresolved = request::get_required_resource_as::<serde_json::Value>(&req, "nope");
+    assert_eq!(unresolved.unwrap(), None);
+    let empty = request::get_required_resource_as::<serde_json::Value>(&req, "empty");
+    assert_eq!(empty.unwrap(), None);
+}
+
+#[test]
+fn typed_required_resources_report_mismatched_items() {
+    #[derive(serde::Deserialize, Debug)]
+    #[expect(dead_code, reason = "the item never deserializes")]
+    struct Item {
+        replicas: i64,
+    }
+
+    let req: RunFunctionRequest = serde_json::from_str(
+        r#"{"requiredResources": {"providers": {"items": [
+            {"resource": {"replicas": "three"}}
+        ]}}}"#,
+    )
+    .unwrap();
+
+    let all = request::get_required_resources_as::<Item>(&req, "providers");
+    assert!(matches!(all, Err(Error::Json(_))));
+    let one = request::get_required_resource_as::<Item>(&req, "providers");
+    assert!(matches!(one, Err(Error::Json(_))));
+}
+
+#[test]
+fn observed_accessors_borrow_the_observed_state() {
+    let req: RunFunctionRequest = serde_json::from_str(
+        r#"{"observed": {
+            "composite": {"resource": {"kind": "XR"}},
+            "resources": {"bucket": {"resource": {"kind": "Bucket"}}}
+        }}"#,
+    )
+    .unwrap();
+    let observed = req.observed.as_ref().unwrap();
+
+    assert_eq!(
+        request::observed_composite(&req),
+        observed.composite.as_ref()
+    );
+    assert_eq!(
+        request::observed_composed(&req, "bucket"),
+        observed.resources.get("bucket")
+    );
+    assert_eq!(request::observed_composed(&req, "nope"), None);
+
+    let empty = RunFunctionRequest::default();
+    assert_eq!(request::observed_composite(&empty), None);
+    assert_eq!(request::observed_composed(&empty, "bucket"), None);
+}
+
+#[test]
+fn desired_accessors_insert_missing_resources() {
+    let mut rsp = RunFunctionResponse::default();
+
+    resource::update_status(
+        response::desired_composite(&mut rsp),
+        &serde_json::json!({"bucket": "ready"}),
+    )
+    .unwrap();
+    resource::set_ready(response::desired_composite(&mut rsp), Ready::True);
+    resource::update(
+        response::desired_composed(&mut rsp, "bucket"),
+        &serde_json::json!({"kind": "Bucket"}),
+    )
+    .unwrap();
+
+    let desired = rsp.desired.unwrap();
+    let xr = desired.composite.as_ref().unwrap();
+    assert_eq!(xr.ready, Ready::True as i32);
+    let xr: serde_json::Value = resource::get(Some(xr)).unwrap();
+    assert_eq!(xr, serde_json::json!({"status": {"bucket": "ready"}}));
+    let bucket: serde_json::Value = resource::get(desired.resources.get("bucket")).unwrap();
+    assert_eq!(bucket, serde_json::json!({"kind": "Bucket"}));
+}
+
+#[test]
+fn desired_accessors_keep_the_copied_forward_state() {
+    let mut rsp = response::to(&fixture(), response::DEFAULT_TTL);
+
+    let bucket = response::desired_composed(&mut rsp, "bucket");
+    resource::set_ready(bucket, Ready::True);
+    resource::update(
+        bucket,
+        &serde_json::json!({"spec": {"forProvider": {"region": "eu-central-1"}}}),
+    )
+    .unwrap();
+
+    let desired = rsp.desired.unwrap();
+    assert_eq!(desired.resources.len(), 1);
+    let bucket = &desired.resources["bucket"];
+    assert_eq!(bucket.ready, Ready::True as i32);
+    let bucket: serde_json::Value = resource::get(Some(bucket)).unwrap();
+    assert_eq!(
+        bucket,
+        serde_json::json!({
+            "apiVersion": "s3.aws.upbound.io/v1beta2",
+            "kind": "Bucket",
+            "spec": {"forProvider": {"region": "eu-central-1"}},
+        })
+    );
+}
+
+#[test]
 fn require_resources_builds_selectors() {
     let mut rsp = RunFunctionResponse::default();
     response::require_resources(
