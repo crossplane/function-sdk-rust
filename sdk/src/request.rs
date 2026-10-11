@@ -55,6 +55,36 @@ pub fn get_required_resource(req: &RunFunctionRequest, name: &str) -> Option<ser
     get_required_resources(req, name)?.into_iter().next()
 }
 
+/// Gets required resources by requirement name as typed values.
+///
+/// Returns `Ok(None)` when Crossplane has not (yet) resolved the
+/// requirement, and an empty Vec when it resolved the requirement but found
+/// no matches. Integral numbers are restored to integers first, as in
+/// [`crate::resource::get`], so integer fields of generated models
+/// deserialize.
+pub fn get_required_resources_as<T: serde::de::DeserializeOwned>(
+    req: &RunFunctionRequest,
+    name: &str,
+) -> Result<Option<Vec<T>>, Error> {
+    get_required_resources(req, name)
+        .map(|resources| resources.into_iter().map(serde_json::from_value).collect())
+        .transpose()
+        .map_err(Error::from)
+}
+
+/// Gets a single required resource by requirement name as a typed value.
+///
+/// Returns `Ok(None)` when the requirement is unresolved or matched nothing.
+pub fn get_required_resource_as<T: serde::de::DeserializeOwned>(
+    req: &RunFunctionRequest,
+    name: &str,
+) -> Result<Option<T>, Error> {
+    get_required_resource(req, name)
+        .map(serde_json::from_value)
+        .transpose()
+        .map_err(Error::from)
+}
+
 /// Gets the watched resource that triggered this operation, if any.
 ///
 /// When a WatchOperation creates an Operation it injects the resource that
