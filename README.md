@@ -97,8 +97,12 @@ with a few deliberate differences:
   survive the protobuf Struct round-trip, so integer fields deserialize
   cleanly.
 - **Health is always on.** function-sdk-go's health service is opt-in
-  (`WithHealthServer`); this SDK always serves the gRPC health API and
-  reports the function as serving.
+  (`WithHealthServer`) and the function sets its status; this SDK always
+  serves the gRPC health API and reports the function as serving. A
+  function that must load something at startup passes a future to
+  `Server::ready`: until it completes, the server reports NOT_SERVING and
+  answers RunFunction with UNAVAILABLE, and if it fails, the server stops
+  with `Error::NotReady`.
 - **Graceful shutdown is built in.** The server drains in-flight requests on
   SIGTERM and SIGINT.
 - **Metrics are Go-compatible, served as OpenMetrics first.** Like

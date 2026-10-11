@@ -24,7 +24,7 @@ pub mod resource;
 pub mod response;
 pub mod server;
 
-pub use server::{Args, serve};
+pub use server::{Args, Server, serve};
 
 /// Errors returned by the SDK.
 #[derive(Debug, thiserror::Error)]
@@ -67,4 +67,8 @@ pub enum Error {
     /// The gRPC reflection service could not be built.
     #[error("cannot build gRPC reflection service: {0}")]
     Reflection(#[from] tonic_reflection::server::Error),
+
+    /// The readiness future set with [`Server::ready`] failed.
+    #[error("the function did not become ready: {0}")]
+    NotReady(Box<dyn std::error::Error + Send + Sync>),
 }
