@@ -28,7 +28,7 @@ clap = { version = "4", features = ["derive", "env"] }
 tracing = "0.1"
 tower-layer = "0.3"
 tower-service = "0.3"
-tracing-subscriber = { version = "0.3", features = ["json"] }
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 sha2 = "0.11"
 thiserror = "2"
 # Not used directly: raises the transitive rustls floor past RUSTSEC-2026-0285.
