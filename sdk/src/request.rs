@@ -1,7 +1,7 @@
 //! Helpers for working with RunFunctionRequests.
 
 use crate::Error;
-use crate::proto::v1::{Capability, CredentialData, RunFunctionRequest, credentials};
+use crate::proto::v1::{Capability, CredentialData, Resource, RunFunctionRequest, credentials};
 use crate::resource::{pb_to_json, struct_to_json};
 
 /// The requirement name a WatchOperation uses to inject the watched resource.
@@ -17,6 +17,22 @@ pub const WATCHED_RESOURCE_KEY: &str = "ops.crossplane.io/watched-resource";
 pub fn get_input<T: serde::de::DeserializeOwned>(req: &RunFunctionRequest) -> Result<T, Error> {
     let input = req.input.as_ref().ok_or(Error::MissingInput)?;
     Ok(serde_json::from_value(struct_to_json(input))?)
+}
+
+/// Gets the observed composite resource (XR), if the request carries one.
+///
+/// Read it as a typed value with [`crate::resource::get`].
+pub fn observed_composite(req: &RunFunctionRequest) -> Option<&Resource> {
+    req.observed.as_ref()?.composite.as_ref()
+}
+
+/// Gets an observed composed resource by name.
+///
+/// Returns None when Crossplane has not observed the resource, for example
+/// before it is first created. Read it as a typed value with
+/// [`crate::resource::get`].
+pub fn observed_composed<'a>(req: &'a RunFunctionRequest, name: &str) -> Option<&'a Resource> {
+    req.observed.as_ref()?.resources.get(name)
 }
 
 /// Gets a function context value by key, if present.

@@ -7,8 +7,9 @@ use serde::Serialize;
 
 use crate::Error;
 use crate::proto::v1::{
-    Condition, MatchLabels, Requirements, ResourceSelector, Result as FnResult, RunFunctionRequest,
-    RunFunctionResponse, SchemaSelector, Severity, Status, Target, resource_selector,
+    Condition, MatchLabels, Requirements, Resource, ResourceSelector, Result as FnResult,
+    RunFunctionRequest, RunFunctionResponse, SchemaSelector, Severity, Status, Target,
+    resource_selector,
 };
 use crate::resource::{json_to_pb, json_to_struct};
 
@@ -34,6 +35,32 @@ pub fn to(req: &RunFunctionRequest, ttl: Duration) -> RunFunctionResponse {
         context: req.context.clone(),
         ..Default::default()
     }
+}
+
+/// Gets the desired composite resource (XR), inserting an empty one when
+/// the response has none.
+///
+/// A function may only set the desired XR's status; Crossplane ignores its
+/// desired metadata and spec. Write it with [`crate::resource::update_status`].
+pub fn desired_composite(rsp: &mut RunFunctionResponse) -> &mut Resource {
+    rsp.desired
+        .get_or_insert_default()
+        .composite
+        .get_or_insert_default()
+}
+
+/// Gets a desired composed resource by name, inserting an empty one when
+/// the response has none.
+///
+/// The resource is modified in place, so whatever earlier pipeline steps
+/// desired for it, copied forward by [`to`], is kept unless overwritten.
+/// Write it with [`crate::resource::update`].
+pub fn desired_composed(rsp: &mut RunFunctionResponse, name: impl Into<String>) -> &mut Resource {
+    rsp.desired
+        .get_or_insert_default()
+        .resources
+        .entry(name.into())
+        .or_default()
 }
 
 /// Adds a normal result to the response.

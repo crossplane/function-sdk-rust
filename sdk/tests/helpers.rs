@@ -328,6 +328,84 @@ fn typed_required_resources_report_mismatched_items() {
 }
 
 #[test]
+fn observed_accessors_borrow_the_observed_state() {
+    let req: RunFunctionRequest = serde_json::from_str(
+        r#"{"observed": {
+            "composite": {"resource": {"kind": "XR"}},
+            "resources": {"bucket": {"resource": {"kind": "Bucket"}}}
+        }}"#,
+    )
+    .unwrap();
+    let observed = req.observed.as_ref().unwrap();
+
+    assert_eq!(
+        request::observed_composite(&req),
+        observed.composite.as_ref()
+    );
+    assert_eq!(
+        request::observed_composed(&req, "bucket"),
+        observed.resources.get("bucket")
+    );
+    assert_eq!(request::observed_composed(&req, "nope"), None);
+
+    let empty = RunFunctionRequest::default();
+    assert_eq!(request::observed_composite(&empty), None);
+    assert_eq!(request::observed_composed(&empty, "bucket"), None);
+}
+
+#[test]
+fn desired_accessors_insert_missing_resources() {
+    let mut rsp = RunFunctionResponse::default();
+
+    resource::update_status(
+        response::desired_composite(&mut rsp),
+        &serde_json::json!({"bucket": "ready"}),
+    )
+    .unwrap();
+    resource::set_ready(response::desired_composite(&mut rsp), Ready::True);
+    resource::update(
+        response::desired_composed(&mut rsp, "bucket"),
+        &serde_json::json!({"kind": "Bucket"}),
+    )
+    .unwrap();
+
+    let desired = rsp.desired.unwrap();
+    let xr = desired.composite.as_ref().unwrap();
+    assert_eq!(xr.ready, Ready::True as i32);
+    let xr: serde_json::Value = resource::get(Some(xr)).unwrap();
+    assert_eq!(xr, serde_json::json!({"status": {"bucket": "ready"}}));
+    let bucket: serde_json::Value = resource::get(desired.resources.get("bucket")).unwrap();
+    assert_eq!(bucket, serde_json::json!({"kind": "Bucket"}));
+}
+
+#[test]
+fn desired_accessors_keep_the_copied_forward_state() {
+    let mut rsp = response::to(&fixture(), response::DEFAULT_TTL);
+
+    let bucket = response::desired_composed(&mut rsp, "bucket");
+    resource::set_ready(bucket, Ready::True);
+    resource::update(
+        bucket,
+        &serde_json::json!({"spec": {"forProvider": {"region": "eu-central-1"}}}),
+    )
+    .unwrap();
+
+    let desired = rsp.desired.unwrap();
+    assert_eq!(desired.resources.len(), 1);
+    let bucket = &desired.resources["bucket"];
+    assert_eq!(bucket.ready, Ready::True as i32);
+    let bucket: serde_json::Value = resource::get(Some(bucket)).unwrap();
+    assert_eq!(
+        bucket,
+        serde_json::json!({
+            "apiVersion": "s3.aws.upbound.io/v1beta2",
+            "kind": "Bucket",
+            "spec": {"forProvider": {"region": "eu-central-1"}},
+        })
+    );
+}
+
+#[test]
 fn require_resources_builds_selectors() {
     let mut rsp = RunFunctionResponse::default();
     response::require_resources(

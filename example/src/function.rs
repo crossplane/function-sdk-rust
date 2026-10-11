@@ -6,7 +6,7 @@
 
 use function_sdk_rust::proto::v1::function_runner_service_server::FunctionRunnerService;
 use function_sdk_rust::proto::v1::{RunFunctionRequest, RunFunctionResponse};
-use function_sdk_rust::{resource, response};
+use function_sdk_rust::{request, resource, response};
 use tonic::{Request, Response, Status};
 
 #[derive(Debug, Default)]
@@ -44,17 +44,14 @@ impl FunctionRunnerService for Function {
             return Ok(Response::new(rsp));
         };
 
-        let composite = req.observed.as_ref().and_then(|s| s.composite.as_ref());
-        let Ok(observed_xr) = resource::get::<Xr>(composite) else {
+        let Ok(observed_xr) = resource::get::<Xr>(request::observed_composite(&req)) else {
             response::fatal(&mut rsp, "invalid XR: spec.region is required");
             return Ok(Response::new(rsp));
         };
         let region = observed_xr.spec.region;
 
-        let desired = rsp.desired.get_or_insert_default();
-        let bucket = desired.resources.entry("bucket".to_string()).or_default();
         resource::update(
-            bucket,
+            response::desired_composed(&mut rsp, "bucket"),
             &serde_json::json!({
                 "apiVersion": format!("s3.aws.upbound.io/{version}"),
                 "kind": "Bucket",
