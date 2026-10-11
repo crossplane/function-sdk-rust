@@ -121,7 +121,11 @@ with a few deliberate differences:
   [prometheus-client], the official OpenMetrics-native client - the only
   purpose-built alternative, [tonic-prometheus-layer], is pinned to tonic
   0.13 and would hold this SDK back. Since this SDK serves no v1beta1, the
-  v1beta1 series the Go SDK pre-created do not exist here.
+  v1beta1 series the Go SDK pre-created do not exist here. Like the Go
+  SDK's `WithMetricsRegistry`, `Server::metrics_registry` serves a
+  function's own series beside the gRPC ones: the function registers them
+  in a prometheus-client `Registry` built with a version semver-compatible
+  with the SDK's (the same minor version while prometheus-client is 0.x).
 
 [crossplane]: https://www.crossplane.io
 [functions]: https://docs.crossplane.io/latest/composition/compositions/

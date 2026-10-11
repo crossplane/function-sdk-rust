@@ -7,6 +7,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use prometheus_client::registry::Registry;
 use tonic::transport::{Certificate, Identity, Server as GrpcServer, ServerTlsConfig};
 use tonic::{Request, Response, Status};
 use tonic_health::ServingStatus;
@@ -90,6 +91,7 @@ pub struct Server<'a, F> {
     function: F,
     args: &'a Args,
     ready: Option<ReadyFuture>,
+    metrics_registry: Option<Registry>,
 }
 
 impl<'a, F: FunctionRunnerService> Server<'a, F> {
@@ -99,6 +101,7 @@ impl<'a, F: FunctionRunnerService> Server<'a, F> {
             function,
             args,
             ready: None,
+            metrics_registry: None,
         }
     }
 
@@ -117,6 +120,21 @@ impl<'a, F: FunctionRunnerService> Server<'a, F> {
         self
     }
 
+    /// Serves `registry` at /metrics, like function-sdk-go's
+    /// `WithMetricsRegistry`: register the function's own series in it
+    /// first, and the SDK adds its `grpc_server_*` series at the root. With
+    /// `--metrics-address` empty nothing is served.
+    ///
+    /// Build the registry and its metrics with a `prometheus-client` version
+    /// that is semver-compatible with the SDK's own dependency on it (while
+    /// prometheus-client is 0.x, the same minor version). Cargo then resolves
+    /// both to one copy of the crate; a registry from an incompatible version
+    /// is a different type and does not compile here.
+    pub fn metrics_registry(mut self, registry: Registry) -> Self {
+        self.metrics_registry = Some(registry);
+        self
+    }
+
     /// Serves RunFunctionRequests until SIGTERM or SIGINT, then shuts down
     /// gracefully. See [`serve`] for what is served.
     pub async fn serve(self) -> Result<(), Error> {
@@ -124,6 +142,7 @@ impl<'a, F: FunctionRunnerService> Server<'a, F> {
             function,
             args,
             ready,
+            metrics_registry,
         } = self;
         let address: SocketAddr = args.address.parse()?;
 
@@ -189,8 +208,9 @@ impl<'a, F: FunctionRunnerService> Server<'a, F> {
         if !args.metrics_address.is_empty() {
             crate::metrics::initialize();
             let metrics_address = args.metrics_address.clone();
+            let registry = crate::metrics::served_registry(metrics_registry);
             tokio::spawn(async move {
-                if let Err(e) = crate::metrics::serve(&metrics_address).await {
+                if let Err(e) = crate::metrics::serve(&metrics_address, registry).await {
                     tracing::error!(error = %e, "cannot serve metrics");
                 }
             });

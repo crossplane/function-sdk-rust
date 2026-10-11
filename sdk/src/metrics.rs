@@ -16,7 +16,7 @@
 //! OpenMetrics gets that instead, derived from the same rendering.
 
 use std::pin::Pin;
-use std::sync::{LazyLock, RwLock};
+use std::sync::{Arc, LazyLock};
 use std::task::{Context, Poll};
 
 use prometheus_client::metrics::counter::Counter;
@@ -27,10 +27,6 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 const FUNCTION_SERVICE: &str = "apiextensions.fn.proto.v1.FunctionRunnerService";
 const HEALTH_SERVICE: &str = "grpc.health.v1.Health";
 
-/// The registry the series live in - prometheus-client has no default
-/// registry, so the server's is this one.
-static REGISTRY: LazyLock<RwLock<Registry>> = LazyLock::new(|| RwLock::new(Registry::default()));
-
 type Labels = Vec<(String, String)>;
 
 /// A counter family addressed by label values in a fixed key order. The
@@ -38,19 +34,25 @@ type Labels = Vec<(String, String)>;
 /// trailing period - the OpenMetrics encoder appends both - so the served
 /// text is byte-identical to the Go SDK's.
 struct LabeledCounter {
+    name: &'static str,
+    help: &'static str,
     keys: &'static [&'static str],
     family: Family<Labels, Counter>,
 }
 
 impl LabeledCounter {
-    fn new(name: &str, help: &str, keys: &'static [&'static str]) -> Self {
-        let family = Family::<Labels, Counter>::default();
-        let help = help.strip_suffix('.').unwrap_or(help);
-        REGISTRY
-            .write()
-            .expect("poisoned")
-            .register(name, help, family.clone());
-        LabeledCounter { keys, family }
+    fn new(name: &'static str, help: &'static str, keys: &'static [&'static str]) -> Self {
+        LabeledCounter {
+            name,
+            help,
+            keys,
+            family: Family::default(),
+        }
+    }
+
+    fn register(&self, registry: &mut Registry) {
+        let help = self.help.strip_suffix('.').unwrap_or(self.help);
+        registry.register(self.name, help, self.family.clone());
     }
 
     fn with_label_values(&self, values: &[&str]) -> impl std::ops::Deref<Target = Counter> {
@@ -134,6 +136,18 @@ fn unary_method(path: &str) -> Option<(&'static str, &'static str)> {
         "/grpc.health.v1.Health/Check" => Some((HEALTH_SERVICE, "Check")),
         _ => None,
     }
+}
+
+/// The registry the /metrics endpoint serves: the function's own, when it
+/// set one with [`crate::Server::metrics_registry`], else an empty one, with
+/// the gRPC server series added at its root. The series stay process-wide
+/// statics so the counting layer needs no registry.
+pub(crate) fn served_registry(registry: Option<Registry>) -> Registry {
+    let mut registry = registry.unwrap_or_default();
+    for counter in [&*STARTED, &*HANDLED, &*MSG_RECEIVED, &*MSG_SENT] {
+        counter.register(&mut registry);
+    }
+    registry
 }
 
 /// Pre-creates every series the server can emit at zero, the way
@@ -344,10 +358,9 @@ const OPENMETRICS_CONTENT_TYPE: &str = "application/openmetrics-text; version=1.
 
 /// The registry rendered as OpenMetrics 1.0 text, straight from
 /// prometheus-client's encoder.
-fn render_openmetrics() -> String {
+fn render_openmetrics(registry: &Registry) -> String {
     let mut out = String::new();
-    let _ =
-        prometheus_client::encoding::text::encode(&mut out, &REGISTRY.read().expect("poisoned"));
+    let _ = prometheus_client::encoding::text::encode(&mut out, registry);
     out
 }
 
@@ -401,9 +414,10 @@ fn wants_classic_text(request_head: &str) -> bool {
     !accept.contains("application/openmetrics-text") && accept.contains("text/plain")
 }
 
-/// Serves the metrics at /metrics on address until the process ends - the
+/// Serves the registry at /metrics on address until the process ends - the
 /// plain-HTTP listener the Go SDK starts beside its gRPC server.
-pub(crate) async fn serve(address: &str) -> Result<(), std::io::Error> {
+pub(crate) async fn serve(address: &str, registry: Registry) -> Result<(), std::io::Error> {
+    let registry = Arc::new(registry);
     // The Go SDK's ":8080" shorthand means every interface.
     let address = if address.starts_with(':') {
         format!("0.0.0.0{address}")
@@ -416,13 +430,14 @@ pub(crate) async fn serve(address: &str) -> Result<(), std::io::Error> {
         let Ok((mut conn, _)) = listener.accept().await else {
             continue;
         };
+        let registry = registry.clone();
         tokio::spawn(async move {
             let mut buf = [0u8; 1024];
             let n = conn.read(&mut buf).await.unwrap_or(0);
             let head = String::from_utf8_lossy(&buf[..n]).into_owned();
             let path = head.split_whitespace().nth(1).unwrap_or_default();
             let response = if path == "/metrics" {
-                let om = render_openmetrics();
+                let om = render_openmetrics(&registry);
                 let (body, content_type) = if wants_classic_text(&head) {
                     (classic_from_openmetrics(&om), "text/plain; version=0.0.4")
                 } else {
@@ -490,7 +505,7 @@ mod tests {
     #[test]
     fn renderings_differ_only_where_the_formats_do() {
         initialize();
-        let om = render_openmetrics();
+        let om = render_openmetrics(&served_registry(None));
         assert!(om.ends_with("# EOF\n"), "OpenMetrics ends with EOF:\n{om}");
         assert!(
             om.contains("# TYPE grpc_server_started counter"),
@@ -511,8 +526,9 @@ mod tests {
     #[test]
     fn a_dropped_reporter_is_a_canceled_call() {
         initialize();
+        let registry = served_registry(None);
         let canceled = || {
-            render_openmetrics()
+            render_openmetrics(&registry)
                 .lines()
                 .find(|l| {
                     l.starts_with("grpc_server_handled_total{grpc_type=\"unary\"")

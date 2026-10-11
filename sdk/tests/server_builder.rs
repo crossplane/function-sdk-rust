@@ -5,10 +5,12 @@ mod common;
 
 use std::sync::{Arc, OnceLock};
 
-use common::{connect_with_retry, free_port};
+use common::{connect_with_retry, free_port, http_get};
 use function_sdk_rust::proto::v1::function_runner_service_server::FunctionRunnerService;
 use function_sdk_rust::proto::v1::{RunFunctionRequest, RunFunctionResponse};
 use function_sdk_rust::{Args, Error, Server, response};
+use prometheus_client::metrics::{counter::Counter, family::Family};
+use prometheus_client::registry::Registry;
 use tonic::{Code, Request, Response, Status};
 use tonic_health::pb::HealthCheckRequest;
 use tonic_health::pb::health_check_response::ServingStatus;
@@ -152,5 +154,44 @@ async fn a_panicking_ready_stops_the_server() {
     assert!(
         err.to_string().contains("cannot parse the bundle"),
         "the panic message: {err}"
+    );
+}
+
+#[tokio::test]
+async fn metrics_registry_serves_the_function_series_beside_the_grpc_ones() {
+    let evaluations = Family::<Vec<(String, String)>, Counter>::default();
+    let mut registry = Registry::default();
+    registry.sub_registry_with_prefix("my_function").register(
+        "evaluations",
+        "Policy evaluations by verdict",
+        evaluations.clone(),
+    );
+    evaluations
+        .get_or_create(&vec![("verdict".to_string(), "deny".to_string())])
+        .inc();
+
+    let metrics_port = free_port();
+    let mut args = insecure_args(free_port());
+    args.metrics_address = format!("127.0.0.1:{metrics_port}");
+    tokio::spawn(async move {
+        Server::new(BundleFunction::default(), &args)
+            .metrics_registry(registry)
+            .serve()
+            .await
+            .expect("serve must start");
+    });
+
+    let om = http_get(metrics_port, None).await;
+    assert!(
+        om.contains("my_function_evaluations_total{verdict=\"deny\"} 1"),
+        "the function's series: {om}"
+    );
+    assert!(
+        om.contains("grpc_server_started_total{grpc_type=\"unary\",grpc_service=\"apiextensions.fn.proto.v1.FunctionRunnerService\",grpc_method=\"RunFunction\"}"),
+        "the SDK's series: {om}"
+    );
+    assert!(
+        om.trim_end().ends_with("# EOF"),
+        "one OpenMetrics body: {om}"
     );
 }
