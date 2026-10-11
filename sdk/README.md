@@ -17,8 +17,8 @@ API. This crate provides:
   results, conditions, readiness, and desired resource updates from any
   `serde::Serialize` source.
 - `logging` - JSON-lines logging to stderr with a human-readable debug mode
-  that keeps the gRPC transport crates at info; `RUST_LOG` overrides the
-  level selection.
+  that keeps the gRPC transport crates at info; `RUST_LOG` (`target=level`
+  directives) overrides the level selection.
 
 See the [repository](https://github.com/crossplane/function-sdk-rust) for a
 complete example function.
