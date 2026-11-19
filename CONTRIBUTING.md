@@ -63,14 +63,17 @@ Finish it on its branch:
    `Vendored from crossplane/crossplane` comment back above `syntax` with the
    new version.
 2. Run `cargo run -p codegen` and commit the changes in `sdk/src/generated`
-   and `sdk/tests/generated`. A new field needs nothing else.
-3. If codegen stops at a field kind it doesn't write yet, its error gives
+   and `sdk/tests/generated`.
+3. Set each new field in the samples of `sdk/tests/generated_messages.rs`.
+   A sample lists every field of its message, so that file doesn't compile
+   until you do.
+4. If codegen stops at a field kind it doesn't write yet, its error gives
    the field and the `#[prost(...)]` attribute. Add the kind to
    `codegen/src/messages.rs`, following what prost's derive generates for it.
-4. If the update adds a message, `the_checks_cover_every_message_of_the_proto`
+5. If the update adds a message, `the_checks_cover_every_message_of_the_proto`
    fails. Add the message to `for_every_message` and to `sample` in
-   `sdk/tests/generated_messages.rs`, and set new fields in the samples.
-5. Run the checks above.
+   `sdk/tests/generated_messages.rs`.
+6. Run the checks above.
 
 A new field on any message is a breaking change for this crate, because the
 message structs are public and can be built with a struct literal. Say so in
