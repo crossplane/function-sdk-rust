@@ -44,6 +44,7 @@ async fn serve_handles_a_run_function_request() {
             meta: Some(RequestMeta {
                 tag: "smoke".to_string(),
                 capabilities: vec![],
+                ..Default::default()
             }),
             ..Default::default()
         })

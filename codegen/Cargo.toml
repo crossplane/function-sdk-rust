@@ -11,3 +11,9 @@ prost-build = "0.14"
 tonic-prost-build = "0.14"
 pbjson-build = "0.9"
 tempfile = "3"
+# The rewrite of the generated messages (src/messages.rs): prost-build's own
+# parser and formatter.
+syn = { version = "3", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"
+prettyplease = "0.3"

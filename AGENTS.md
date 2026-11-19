@@ -18,16 +18,17 @@ Run all of these before you call a change done. CI requires them.
 cargo fmt --all --check
 cargo clippy --workspace --tests -- -D warnings
 cargo test --workspace
-cargo run -p codegen   # needs protoc; must leave sdk/src/generated unchanged
+cargo run -p codegen   # needs protoc; must leave the generated files unchanged
 ```
 
 ## Rules
 
-- Never edit `sdk/src/generated` by hand. Change the proto or `codegen/` and
-  regenerate.
-- `State` and `Resource` are written by hand in `sdk/src/proto/state.rs`.
-  When the proto changes either message, update that file and
-  `sdk/tests/unknown_fields.rs` as CONTRIBUTING.md describes.
+- Never edit `sdk/src/generated` or `sdk/tests/generated` by hand. Change the
+  proto or `codegen/` and regenerate.
+- Every message keeps unknown fields: `codegen/src/messages.rs` writes the
+  `prost::Message` impls in place of prost's derive. When codegen refuses a
+  field kind, or a test in `sdk/tests/generated_messages.rs` fails, follow
+  CONTRIBUTING.md.
 - A new public field on a message struct is a breaking change. Say so in the
   commit and the pull request.
 - Don't change the crate version outside a release pull request.

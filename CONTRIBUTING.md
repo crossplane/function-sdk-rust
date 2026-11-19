@@ -33,18 +33,22 @@ cargo run -p codegen
 
 CI runs four checks on every pull request, and all four must pass before it
 can merge: `fmt`, `clippy`, `test` and `codegen-drift`. The last one runs
-codegen and fails when the `.rs` files in `sdk/src/generated` differ from
-what's checked in.
+codegen and fails when the `.rs` files in `sdk/src/generated` or
+`sdk/tests/generated` differ from what's checked in.
 
-### Generated and hand-written protocol code
+### Generated protocol code
 
-Don't edit `sdk/src/generated` by hand. Change the proto or `codegen/`, then
-run codegen and commit the result.
+Don't edit `sdk/src/generated` or `sdk/tests/generated` by hand. Change the
+proto or `codegen/`, then run codegen and commit the result.
 
-Two messages aren't generated. `State` and `Resource` are written by hand in
-`sdk/src/proto/state.rs` so that they keep fields this SDK doesn't know,
-which prost-generated messages discard. Codegen skips both and adds
-`unknown_fields` to their generated serde constructors.
+prost discards a field it doesn't know, so codegen replaces prost's `Message`
+derive. `codegen/src/messages.rs` gives every message an `unknown_fields`
+field and writes the impls the derive would have written, with the unknown
+fields kept and encoded again. Codegen also writes the messages as prost
+derives them to `sdk/tests/generated/prost_v1.rs`.
+`sdk/tests/generated_messages.rs` compares the two for every message: the
+bytes, the errors on malformed input, `Debug`, the defaults and the
+accessors.
 
 ### Updating the vendored proto
 
@@ -58,14 +62,15 @@ Finish it on its branch:
 1. Replace the file with the one from the release tag, and put the
    `Vendored from crossplane/crossplane` comment back above `syntax` with the
    new version.
-2. Run `cargo run -p codegen` and commit the changes in `sdk/src/generated`.
-   New fields on generated messages need nothing else.
-3. If the update changes `State` or `Resource`, the build fails in the
-   generated serde code and a test in `sdk/tests/unknown_fields.rs` fails.
-   Update `sdk/src/proto/state.rs` to match: the struct field, `encode_raw`,
-   `merge_field`, `encoded_len`, and `Debug` for `Resource`. Then update the
-   prost-derived copies and the expected field list in that test file.
-4. Run the checks above.
+2. Run `cargo run -p codegen` and commit the changes in `sdk/src/generated`
+   and `sdk/tests/generated`. A new field needs nothing else.
+3. If codegen stops at a field kind it doesn't write yet, its error gives
+   the field and the `#[prost(...)]` attribute. Add the kind to
+   `codegen/src/messages.rs`, following what prost's derive generates for it.
+4. If the update adds a message, `the_checks_cover_every_message_of_the_proto`
+   fails. Add the message to `for_every_message` and to `sample` in
+   `sdk/tests/generated_messages.rs`, and set new fields in the samples.
+5. Run the checks above.
 
 A new field on any message is a breaking change for this crate, because the
 message structs are public and can be built with a struct literal. Say so in
@@ -80,6 +85,10 @@ A new version of `prost-build`, `tonic-prost-build` or `pbjson-build` can
 change the generated code, and its pull request then fails `codegen-drift`.
 Check out the branch, run `cargo run -p codegen`, and push the result to the
 same branch.
+
+A new version of `prost` can change what its `Message` derive does. Its pull
+request then fails in `sdk/tests/generated_messages.rs`, and
+`codegen/src/messages.rs` has to follow the derive before it merges.
 
 ## Submitting changes
 
