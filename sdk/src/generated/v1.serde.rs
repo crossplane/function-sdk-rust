@@ -238,6 +238,7 @@ impl<'de> serde::Deserialize<'de> for Condition {
                     reason: reason__.unwrap_or_default(),
                     message: message__,
                     target: target__,
+                    unknown_fields: Default::default(),
                 })
             }
         }
@@ -334,6 +335,7 @@ impl<'de> serde::Deserialize<'de> for CredentialData {
                 }
                 Ok(CredentialData {
                     data: data__.unwrap_or_default(),
+                    unknown_fields: Default::default(),
                 })
             }
         }
@@ -431,6 +433,7 @@ impl<'de> serde::Deserialize<'de> for Credentials {
                 }
                 Ok(Credentials {
                     source: source__,
+                    unknown_fields: Default::default(),
                 })
             }
         }
@@ -524,6 +527,7 @@ impl<'de> serde::Deserialize<'de> for MatchLabels {
                 }
                 Ok(MatchLabels {
                     labels: labels__.unwrap_or_default(),
+                    unknown_fields: Default::default(),
                 })
             }
         }
@@ -710,6 +714,7 @@ impl<'de> serde::Deserialize<'de> for RequestMeta {
                 Ok(RequestMeta {
                     tag: tag__.unwrap_or_default(),
                     capabilities: capabilities__.unwrap_or_default(),
+                    unknown_fields: Default::default(),
                 })
             }
         }
@@ -842,6 +847,7 @@ impl<'de> serde::Deserialize<'de> for Requirements {
                     extra_resources: extra_resources__.unwrap_or_default(),
                     resources: resources__.unwrap_or_default(),
                     schemas: schemas__.unwrap_or_default(),
+                    unknown_fields: Default::default(),
                 })
             }
         }
@@ -1138,6 +1144,7 @@ impl<'de> serde::Deserialize<'de> for ResourceSelector {
                     kind: kind__.unwrap_or_default(),
                     namespace: namespace__,
                     r#match: r#match__,
+                    unknown_fields: Default::default(),
                 })
             }
         }
@@ -1229,6 +1236,7 @@ impl<'de> serde::Deserialize<'de> for Resources {
                 }
                 Ok(Resources {
                     items: items__.unwrap_or_default(),
+                    unknown_fields: Default::default(),
                 })
             }
         }
@@ -1337,6 +1345,7 @@ impl<'de> serde::Deserialize<'de> for ResponseMeta {
                 Ok(ResponseMeta {
                     tag: tag__.unwrap_or_default(),
                     ttl: ttl__,
+                    unknown_fields: Default::default(),
                 })
             }
         }
@@ -1483,6 +1492,7 @@ impl<'de> serde::Deserialize<'de> for Result {
                     message: message__.unwrap_or_default(),
                     reason: reason__,
                     target: target__,
+                    unknown_fields: Default::default(),
                 })
             }
         }
@@ -1721,6 +1731,7 @@ impl<'de> serde::Deserialize<'de> for RunFunctionRequest {
                     credentials: credentials__.unwrap_or_default(),
                     required_resources: required_resources__.unwrap_or_default(),
                     required_schemas: required_schemas__.unwrap_or_default(),
+                    unknown_fields: Default::default(),
                 })
             }
         }
@@ -1914,6 +1925,7 @@ impl<'de> serde::Deserialize<'de> for RunFunctionResponse {
                     requirements: requirements__,
                     conditions: conditions__.unwrap_or_default(),
                     output: output__,
+                    unknown_fields: Default::default(),
                 })
             }
         }
@@ -2006,6 +2018,7 @@ impl<'de> serde::Deserialize<'de> for Schema {
                 }
                 Ok(Schema {
                     openapi_v3: openapi_v3__,
+                    unknown_fields: Default::default(),
                 })
             }
         }
@@ -2115,6 +2128,7 @@ impl<'de> serde::Deserialize<'de> for SchemaSelector {
                 Ok(SchemaSelector {
                     api_version: api_version__.unwrap_or_default(),
                     kind: kind__.unwrap_or_default(),
+                    unknown_fields: Default::default(),
                 })
             }
         }

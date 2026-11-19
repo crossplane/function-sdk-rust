@@ -32,6 +32,7 @@ pub fn to(req: &RunFunctionRequest, ttl: Duration) -> RunFunctionResponse {
                 seconds: ttl.as_secs() as i64,
                 nanos: ttl.subsec_nanos() as i32,
             }),
+            ..Default::default()
         }),
         desired: req.desired.clone(),
         context: req.context.clone(),
@@ -107,6 +108,7 @@ fn add_result(
         reason: None,
         // Explicitly target the XR by default, like function-sdk-go does.
         target: Some(Target::Composite as i32),
+        ..Default::default()
     });
     rsp.results.last_mut().expect("a result was just pushed")
 }
@@ -154,6 +156,7 @@ fn add_condition(
         reason: reason.into(),
         message: None,
         target: None,
+        ..Default::default()
     });
     rsp.conditions
         .last_mut()
@@ -189,11 +192,13 @@ pub fn require_resources(
         kind: kind.into(),
         r#match: r#match.map(|m| match m {
             ResourceMatch::Name(name) => resource_selector::Match::MatchName(name),
-            ResourceMatch::Labels(labels) => {
-                resource_selector::Match::MatchLabels(MatchLabels { labels })
-            }
+            ResourceMatch::Labels(labels) => resource_selector::Match::MatchLabels(MatchLabels {
+                labels,
+                ..Default::default()
+            }),
         }),
         namespace,
+        ..Default::default()
     };
     requirements(rsp).resources.insert(name.into(), selector);
 }
@@ -212,6 +217,7 @@ pub fn require_schema(
     let selector = SchemaSelector {
         api_version: api_version.into(),
         kind: kind.into(),
+        ..Default::default()
     };
     requirements(rsp).schemas.insert(name.into(), selector);
 }

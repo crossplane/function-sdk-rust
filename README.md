@@ -21,7 +21,10 @@ for working with requests and responses.
     encoded file descriptor set used for gRPC server reflection.
   - `src/{server,request,response,resource,logging}.rs` - the hand-written
     SDK: runtime and helpers.
-- `codegen/` - maintainer tool that regenerates `sdk/src/generated`.
+  - `tests/generated/` - the messages as prost derives them, which the tests
+    compare the generated ones with.
+- `codegen/` - maintainer tool that regenerates `sdk/src/generated` and
+  `sdk/tests/generated`.
 - `example/` - an example function, the starting point for new functions.
 
 ## Writing a function
@@ -105,12 +108,13 @@ with a few deliberate differences:
   `Server::ready`: until it completes, the server reports NOT_SERVING and
   answers RunFunction with UNAVAILABLE, and if it fails, the server stops
   with `Error::NotReady`.
-- **Unknown fields are kept on `State` and `Resource` only.** protobuf-go
-  keeps fields it does not know on every message. This SDK keeps them on the
-  two messages `response::to` copies from the request, so a field a newer
-  Crossplane adds to them passes through a function unchanged.
-  As in Go, replacing a desired resource instead of modifying it in place
-  drops that resource's unknown fields.
+- **Every message keeps unknown fields.** Like protobuf-go, this SDK keeps
+  the fields it doesn't know, in `unknown_fields`, and writes them back when
+  it encodes the message. A field a newer Crossplane adds to a request passes
+  through a function unchanged, and so does a field on a response the
+  function forwards. A function can't read or change such a field, and it has
+  no JSON form. As in Go, replacing a desired resource instead of modifying
+  it in place drops that resource's unknown fields.
 - **Graceful shutdown is built in.** The server drains in-flight requests on
   SIGTERM and SIGINT.
 - **Metrics are Go-compatible, served as OpenMetrics first.** Like

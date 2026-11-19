@@ -264,7 +264,11 @@ name = "codegen"
 version = "0.1.0"
 dependencies = [
  "pbjson-build",
+ "prettyplease 0.3.0",
+ "proc-macro2",
  "prost-build",
+ "quote",
+ "syn 3.0.10",
  "tempfile",
  "tonic-prost-build",
 ]

@@ -1,34 +1,17 @@
+//! What a function sees of the fields its SDK does not know: they pass
+//! through it, on every message. `generated_messages.rs` holds the messages
+//! themselves to the ones prost derives.
+
 use std::collections::HashMap;
 
+use function_sdk_rust::proto::UnknownFields;
 use function_sdk_rust::proto::v1::{
-    Ready, Resource, RunFunctionRequest, RunFunctionResponse, State,
+    Ready, RequestMeta, Requirements, Resource, ResourceSelector, ResponseMeta, Result as FnResult,
+    RunFunctionRequest, RunFunctionResponse, State,
 };
-use function_sdk_rust::proto::{FILE_DESCRIPTOR_SET, UnknownFields};
 use function_sdk_rust::{resource, response};
 use prost::Message;
 use prost::encoding;
-use prost_types::FileDescriptorSet;
-use prost_types::field_descriptor_proto::Type;
-
-/// What prost generates for `State` from the vendored proto.
-#[derive(Clone, PartialEq, Message)]
-struct GeneratedState {
-    #[prost(message, optional, tag = "1")]
-    composite: Option<GeneratedResource>,
-    #[prost(map = "string, message", tag = "2")]
-    resources: HashMap<String, GeneratedResource>,
-}
-
-/// What prost generates for `Resource` from the vendored proto.
-#[derive(Clone, PartialEq, Message)]
-struct GeneratedResource {
-    #[prost(message, optional, tag = "1")]
-    resource: Option<pbjson_types::Struct>,
-    #[prost(map = "string, bytes", tag = "2")]
-    connection_details: HashMap<String, Vec<u8>>,
-    #[prost(enumeration = "Ready", tag = "3")]
-    ready: i32,
-}
 
 /// Every map in the fixtures has one entry, because prost encodes maps in
 /// hash order and the tests compare encoded bytes.
@@ -99,20 +82,6 @@ fn desired_bytes(rsp: &RunFunctionResponse) -> Vec<u8> {
         .as_ref()
         .expect("the response has desired state")
         .encode_to_vec()
-}
-
-#[test]
-fn known_fields_encode_as_prost_generates_them() {
-    let state = known_state();
-    let generated = GeneratedState::decode(state.encode_to_vec().as_slice())
-        .expect("the generated message decodes hand-written output");
-
-    assert_eq!(state.encode_to_vec(), generated.encode_to_vec());
-    assert_eq!(state.encoded_len(), generated.encoded_len());
-    assert_eq!(
-        State::decode(generated.encode_to_vec().as_slice()).expect("decodes"),
-        state
-    );
 }
 
 #[test]
@@ -199,48 +168,6 @@ fn a_known_field_with_the_wrong_wire_type_fails_to_decode() {
     assert!(error.to_string().contains("Resource.ready"), "{error}");
 }
 
-/// Feeds both messages every known field number with every wire type and a
-/// few payloads, and expects the same verdict as the messages prost
-/// generates. The generated messages drop unknown fields, so decoding the
-/// hand-written output with them compares the known fields alone.
-#[test]
-fn malformed_input_decodes_as_prost_generates_it() {
-    let payloads: [&[u8]; 6] = [
-        &[],
-        &[0x00],
-        &[0x01],
-        &[0x04, 0x0a, 0x02, b'h', b'i'],
-        &[0x00, 0x00, 0x00, 0x00],
-        &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
-    ];
-    for tag in 1..=4u8 {
-        for wire_type in 0..=5u8 {
-            for payload in payloads {
-                let mut input = vec![tag << 3 | wire_type];
-                input.extend(payload);
-
-                let state = State::decode(input.as_slice());
-                let generated = GeneratedState::decode(input.as_slice());
-                assert_eq!(state.is_ok(), generated.is_ok(), "State {input:?}");
-                if let (Ok(state), Ok(generated)) = (state, generated) {
-                    let known = GeneratedState::decode(state.encode_to_vec().as_slice())
-                        .expect("the generated message decodes hand-written output");
-                    assert_eq!(known, generated, "State {input:?}");
-                }
-
-                let resource = Resource::decode(input.as_slice());
-                let generated = GeneratedResource::decode(input.as_slice());
-                assert_eq!(resource.is_ok(), generated.is_ok(), "Resource {input:?}");
-                if let (Ok(resource), Ok(generated)) = (resource, generated) {
-                    let known = GeneratedResource::decode(resource.encode_to_vec().as_slice())
-                        .expect("the generated message decodes hand-written output");
-                    assert_eq!(known, generated, "Resource {input:?}");
-                }
-            }
-        }
-    }
-}
-
 #[test]
 fn a_map_field_with_the_wrong_wire_type_fails_to_decode() {
     let error = Resource::decode([0x10, 0x00].as_slice()).expect_err("a map is not a varint");
@@ -261,29 +188,6 @@ fn unknown_fields_of_the_composite_resource_are_kept() {
     let composite = decoded.composite.as_ref().expect("has a composite");
     assert_ne!(composite.unknown_fields, UnknownFields::default());
     assert_eq!(decoded.encode_to_vec(), state);
-}
-
-#[test]
-fn debug_prints_ready_as_prost_generates_it() {
-    for ready in [0, 1, 2, 7] {
-        let resource = Resource {
-            ready,
-            ..Default::default()
-        };
-        let generated = GeneratedResource {
-            ready,
-            ..Default::default()
-        };
-        let want = format!("{generated:?}")
-            .replace("GeneratedResource", "Resource")
-            .replace(" }", ", unknown_fields: UnknownFields([]) }");
-        assert_eq!(format!("{resource:?}"), want);
-    }
-    let ready = Resource {
-        ready: Ready::True as i32,
-        ..Default::default()
-    };
-    assert!(format!("{ready:?}").contains("ready: True"));
 }
 
 #[test]
@@ -314,43 +218,90 @@ fn known_state_without_composite() -> State {
     }
 }
 
-/// The hand-written messages must be updated when the vendored proto
-/// changes them. Until then a new field still passes through as an unknown
-/// field, but functions cannot read or set it.
-#[test]
-fn hand_written_messages_cover_every_field_of_the_proto() {
-    let cases = [
-        (
-            "State",
-            vec![
-                ("composite", 1, Type::Message),
-                ("resources", 2, Type::Message),
-            ],
-        ),
-        (
-            "Resource",
-            vec![
-                ("resource", 1, Type::Message),
-                ("connection_details", 2, Type::Message),
-                ("ready", 3, Type::Enum),
-            ],
-        ),
-    ];
+/// `message` as field `number` of the message that holds it.
+fn field(number: u32, message: &[u8]) -> Vec<u8> {
+    let mut buf = Vec::new();
+    encoding::bytes::encode(number, &message.to_vec(), &mut buf);
+    buf
+}
 
-    let files = FileDescriptorSet::decode(FILE_DESCRIPTOR_SET).expect("the descriptor decodes");
-    for (name, want) in cases {
-        let message = files
-            .file
-            .iter()
-            .filter(|file| file.package() == "apiextensions.fn.proto.v1")
-            .flat_map(|file| &file.message_type)
-            .find(|message| message.name() == name)
-            .unwrap_or_else(|| panic!("{name} is in the descriptor"));
-        let got: Vec<_> = message
-            .field
-            .iter()
-            .map(|field| (field.name(), field.number(), field.r#type()))
-            .collect();
-        assert_eq!(got, want, "{name}: update sdk/src/proto/state.rs");
-    }
+/// The fields Crossplane has added since the function API went v1 are on
+/// the request, its meta, the response, the requirements and the resource
+/// selector: none is on State or Resource. A function that forwards a
+/// request, or returns a response it did not build, keeps what a newer
+/// Crossplane or a newer function put on any of them.
+#[test]
+fn unknown_fields_pass_through_every_message_of_a_request_and_a_response() {
+    let meta = RequestMeta {
+        tag: "tag".to_string(),
+        ..Default::default()
+    };
+    let mut request = field(1, &with_unknown_fields(&meta));
+    request.extend(field(3, &newer_state()));
+    request.extend(fields_from_a_newer_crossplane());
+
+    let decoded = RunFunctionRequest::decode(request.as_slice()).expect("decodes");
+    assert_ne!(decoded.unknown_fields, UnknownFields::default());
+    let decoded_meta = decoded.meta.as_ref().expect("has meta");
+    assert_ne!(decoded_meta.unknown_fields, UnknownFields::default());
+    assert_eq!(decoded_meta.tag, "tag");
+    assert_eq!(decoded.encode_to_vec(), request);
+
+    let selector = ResourceSelector {
+        api_version: "v1".to_string(),
+        kind: "Secret".to_string(),
+        ..Default::default()
+    };
+    let mut selectors = Vec::new();
+    encoding::hash_map::encode(
+        encoding::string::encode,
+        encoding::string::encoded_len,
+        encoding::bytes::encode,
+        encoding::bytes::encoded_len,
+        2,
+        &HashMap::from([("secret".to_string(), with_unknown_fields(&selector))]),
+        &mut selectors,
+    );
+    selectors.extend(fields_from_a_newer_crossplane());
+    let result = FnResult {
+        message: "a message".to_string(),
+        ..Default::default()
+    };
+    let response_meta = ResponseMeta {
+        tag: "tag".to_string(),
+        ..Default::default()
+    };
+    let mut response = field(1, &with_unknown_fields(&response_meta));
+    response.extend(field(2, &newer_state()));
+    response.extend(field(3, &with_unknown_fields(&result)));
+    response.extend(field(5, &selectors));
+    response.extend(fields_from_a_newer_crossplane());
+
+    let decoded = RunFunctionResponse::decode(response.as_slice()).expect("decodes");
+    assert_ne!(decoded.unknown_fields, UnknownFields::default());
+    assert_ne!(
+        decoded.meta.as_ref().expect("has meta").unknown_fields,
+        UnknownFields::default()
+    );
+    assert_ne!(decoded.results[0].unknown_fields, UnknownFields::default());
+    let requirements: &Requirements = decoded.requirements.as_ref().expect("has requirements");
+    assert_ne!(requirements.unknown_fields, UnknownFields::default());
+    assert_ne!(
+        requirements.resources["secret"].unknown_fields,
+        UnknownFields::default()
+    );
+    assert_eq!(requirements.resources["secret"].kind, "Secret");
+    assert_eq!(decoded.encode_to_vec(), response);
+}
+
+#[test]
+fn debug_prints_an_enumeration_by_name_and_the_unknown_fields() {
+    let ready = Resource {
+        ready: Ready::True as i32,
+        ..Default::default()
+    };
+    assert_eq!(
+        format!("{ready:?}"),
+        "Resource { resource: None, connection_details: {}, ready: True, unknown_fields: UnknownFields([]) }"
+    );
 }
