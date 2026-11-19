@@ -619,18 +619,22 @@ impl MapValue {
 mod tests {
     use super::*;
 
+    /// A message whose fields are declared out of tag order, with a oneof
+    /// that lists its highest tag first. On the wire the order is `tag` (1),
+    /// `source` (3), `kind` (4): the declaration order and a sort by a
+    /// oneof's first tag are both another order.
     const PROST: &str = r#"
 /// A message.
 #[allow(clippy::all)]
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct Meta {
+    #[prost(enumeration = "Kind", optional, tag = "4")]
+    pub kind: ::core::option::Option<i32>,
+    #[prost(oneof = "meta::Source", tags = "6, 3")]
+    pub source: ::core::option::Option<meta::Source>,
     /// Its tag.
     #[prost(string, tag = "1")]
     pub tag: ::prost::alloc::string::String,
-    #[prost(enumeration = "Kind", optional, tag = "2")]
-    pub kind: ::core::option::Option<i32>,
-    #[prost(oneof = "meta::Source", tags = "4, 3")]
-    pub source: ::core::option::Option<meta::Source>,
 }
 /// Nested message and enum types in `Meta`.
 pub mod meta {
@@ -638,7 +642,7 @@ pub mod meta {
     pub enum Source {
         #[prost(string, tag = "3")]
         Name(::prost::alloc::string::String),
-        #[prost(message, tag = "4")]
+        #[prost(message, tag = "6")]
         Inner(Inner),
     }
     #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -681,7 +685,7 @@ pub enum Kind {
             source.contains("_ => self.unknown_fields.merge(tag, wire_type, buf, ctx),"),
             "{source}"
         );
-        assert!(source.contains("4u32 | 3u32 => {"), "{source}");
+        assert!(source.contains("6u32 | 3u32 => {"), "{source}");
         assert!(
             source.contains("pub fn set_kind(&mut self, value: Kind) {"),
             "{source}"
@@ -709,16 +713,29 @@ pub enum Kind {
     }
 
     #[test]
-    fn fields_are_encoded_in_tag_order() {
+    fn fields_are_encoded_in_tag_order_with_a_oneof_at_its_lowest_tag() {
         let source = rewrite(PROST).expect("rewrites").source;
         let encode = &source[source.find("fn encode_raw").expect("encode_raw")..];
         let tag = encode.find("encode(1u32").expect("tag 1");
-        let kind = encode.find("encode(2u32").expect("tag 2");
         let oneof = encode.find("oneof.encode(buf)").expect("the oneof");
+        let kind = encode.find("encode(4u32").expect("tag 4");
         let unknown = encode
             .find("self.unknown_fields.encode(buf)")
             .expect("the unknown fields");
-        assert!(tag < kind && kind < oneof && oneof < unknown);
+        assert!(tag < oneof && oneof < kind && kind < unknown, "{encode}");
+    }
+
+    #[test]
+    fn debug_prints_the_fields_as_declared() {
+        let source = rewrite(PROST).expect("rewrites").source;
+        let debug = &source[source.find("fn fmt").expect("the Debug impl")..];
+        let kind = debug.find("stringify!(kind)").expect("kind");
+        let oneof = debug.find("stringify!(source)").expect("source");
+        let tag = debug.find("stringify!(tag)").expect("tag");
+        let unknown = debug
+            .find("\"unknown_fields\"")
+            .expect("the unknown fields");
+        assert!(kind < oneof && oneof < tag && tag < unknown, "{debug}");
     }
 
     #[test]
