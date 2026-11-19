@@ -1,6 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", "docker:pinDigests", "helpers:pinGitHubActionDigests"],
+  "lockFileMaintenance": { "enabled": true },
   "packageRules": [
     {
       "description": "Update the example function's build and runtime images in one PR",
@@ -9,8 +10,8 @@
       "groupName": "example function images"
     },
     {
-      "description": "Automerge non-major updates and digest pins once CI passes",
-      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
+      "description": "Automerge non-major updates, digest pins and lock file maintenance once CI passes",
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest", "lockFileMaintenance"],
       "automerge": true
     },
     {

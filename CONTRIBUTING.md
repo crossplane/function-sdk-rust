@@ -84,6 +84,12 @@ the pull request so the next release gets the right version.
 Renovate merges minor, patch and digest updates by itself once the checks
 pass. Major updates and proto updates wait for a maintainer.
 
+Once a week Renovate also refreshes `Cargo.lock` within the ranges the
+manifests allow and merges that the same way. An indirect dependency has no
+line in a manifest, so this refresh is how a fix in one arrives. The lock
+file is the repository's own: a function that depends on the SDK resolves
+its dependencies itself.
+
 A new version of `prost-build`, `tonic-prost-build` or `pbjson-build` can
 change the generated code, and its pull request then fails `codegen-drift`.
 Check out the branch, run `cargo run -p codegen`, and push the result to the
