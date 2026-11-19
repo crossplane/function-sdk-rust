@@ -72,6 +72,9 @@ cargo clippy --workspace --tests
 cargo run -p codegen
 ```
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the checks CI runs, how to update
+the vendored proto, and how releases are made.
+
 The vendored proto's canonical source is
 [crossplane/crossplane/proto/fn/v1][proto]. Only the v1 API is supported,
 which requires Crossplane v1.17 or later.
@@ -131,6 +134,12 @@ with a few deliberate differences:
   function's own series beside the gRPC ones: the function registers them
   in a prometheus-client `Registry` built with a version semver-compatible
   with the SDK's (the same minor version while prometheus-client is 0.x).
+
+## Agents
+
+If you are an AI agent helping with this repository, read
+[AGENTS.md](AGENTS.md) before making changes and read
+[CONTRIBUTING.md](CONTRIBUTING.md) before opening issues or PRs.
 
 [crossplane]: https://www.crossplane.io
 [functions]: https://docs.crossplane.io/latest/composition/compositions/
