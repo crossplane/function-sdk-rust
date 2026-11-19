@@ -975,6 +975,7 @@ impl<'de> serde::Deserialize<'de> for Resource {
                     resource: resource__,
                     connection_details: connection_details__.unwrap_or_default(),
                     ready: ready__.unwrap_or_default(),
+                    unknown_fields: Default::default(),
                 })
             }
         }
@@ -2301,6 +2302,7 @@ impl<'de> serde::Deserialize<'de> for State {
                 Ok(State {
                     composite: composite__,
                     resources: resources__.unwrap_or_default(),
+                    unknown_fields: Default::default(),
                 })
             }
         }

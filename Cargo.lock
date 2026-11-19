@@ -405,6 +405,7 @@ dependencies = [
  "pbjson-types",
  "prometheus-client",
  "prost",
+ "prost-types",
  "rustls",
  "serde",
  "serde_json",

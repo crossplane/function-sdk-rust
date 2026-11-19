@@ -10,7 +10,7 @@ pub struct RunFunctionRequest {
     /// to each function is fresh as of the time the pipeline was invoked, not as
     /// of the time each function was invoked.
     #[prost(message, optional, tag = "2")]
-    pub observed: ::core::option::Option<State>,
+    pub observed: ::core::option::Option<crate::proto::state::State>,
     /// Desired state according to a function pipeline. The state passed to a
     /// particular function may have been accumulated by previous functions in the
     /// pipeline.
@@ -22,7 +22,7 @@ pub struct RunFunctionRequest {
     /// as desired before will result in them being deleted from the objects in the
     /// cluster.
     #[prost(message, optional, tag = "3")]
-    pub desired: ::core::option::Option<State>,
+    pub desired: ::core::option::Option<crate::proto::state::State>,
     /// Optional input specific to this function invocation. A JSON representation
     /// of the 'input' block of the relevant entry in a function pipeline.
     #[prost(message, optional, tag = "4")]
@@ -111,7 +111,7 @@ pub struct CredentialData {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Resources {
     #[prost(message, repeated, tag = "1")]
-    pub items: ::prost::alloc::vec::Vec<Resource>,
+    pub items: ::prost::alloc::vec::Vec<crate::proto::state::Resource>,
 }
 /// A RunFunctionResponse contains the result of a function run.
 #[allow(clippy::all)]
@@ -132,7 +132,7 @@ pub struct RunFunctionResponse {
     /// as desired before will result in them being deleted from the objects in the
     /// cluster.
     #[prost(message, optional, tag = "2")]
-    pub desired: ::core::option::Option<State>,
+    pub desired: ::core::option::Option<crate::proto::state::State>,
     /// Results of the function run. Results are used for observability purposes.
     #[prost(message, repeated, tag = "3")]
     pub results: ::prost::alloc::vec::Vec<Result>,
@@ -274,75 +274,6 @@ pub struct ResponseMeta {
     /// function again until the TTL expires.
     #[prost(message, optional, tag = "2")]
     pub ttl: ::core::option::Option<::pbjson_types::Duration>,
-}
-/// State of the XR (XR) and any resources.
-#[allow(clippy::all)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct State {
-    /// The state of the XR (XR).
-    #[prost(message, optional, tag = "1")]
-    pub composite: ::core::option::Option<Resource>,
-    /// The state of any other resources. In composition functions these are the
-    /// composed resources. In operation functions they're arbitrary resources that
-    /// the operation wants to create or update.
-    #[prost(map = "string, message", tag = "2")]
-    pub resources: ::std::collections::HashMap<::prost::alloc::string::String, Resource>,
-}
-/// A Resource represents the state of a Kubernetes resource.
-#[allow(clippy::all)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Resource {
-    /// The JSON representation of the resource.
-    ///
-    /// * Crossplane will set this field in a RunFunctionRequest to the entire
-    ///   observed state of a resource - including its metadata, spec, and status.
-    ///
-    /// * A function should set this field in a RunFunctionRequest to communicate
-    ///   the desired state of the resource.
-    ///
-    /// * A function may only specify the desired status of a XR - not its metadata
-    ///   or spec. A function should not return desired metadata or spec for a XR.
-    ///   This will be ignored.
-    ///
-    /// * A function may not specify the desired status of any other resource -
-    ///   e.g. composed resources. It may only specify their metadata and spec.
-    ///   Status will be ignored.
-    #[prost(message, optional, tag = "1")]
-    pub resource: ::core::option::Option<::pbjson_types::Struct>,
-    /// The resource's connection details.
-    ///
-    /// * Crossplane will set this field in a RunFunctionRequest to communicate the
-    ///   the observed connection details of a composite or composed resource.
-    ///
-    /// * A function should set this field in a RunFunctionResponse to indicate the
-    ///   desired connection details of legacy XRs. For modern XRs, this will be ignored.
-    ///
-    /// * A function should not set this field in a RunFunctionResponse to indicate
-    ///   the desired connection details of a composed resource. This will be
-    ///   ignored.
-    ///
-    /// Connection details are only used for composition. They're ignored by
-    /// Operations.
-    #[prost(map = "string, bytes", tag = "2")]
-    pub connection_details: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::vec::Vec<u8>,
-    >,
-    /// Ready indicates whether the resource should be considered ready.
-    ///
-    /// * Crossplane will never set this field in a RunFunctionRequest.
-    ///
-    /// * A function should set this field to READY_TRUE in a RunFunctionResponse
-    ///   to indicate that a desired resource is ready.
-    ///
-    /// * A function should set this field to READY_TRUE in a RunFunctionResponse
-    ///   to indicate that a desired XR is ready. This overwrites the standard
-    ///   readiness detection that determines the ready state of the composite by the
-    ///   ready state of the composed resources.
-    ///
-    /// Ready is only used for composition. It's ignored by Operations.
-    #[prost(enumeration = "Ready", tag = "3")]
-    pub ready: i32,
 }
 /// A Result of running a function.
 #[allow(clippy::all)]

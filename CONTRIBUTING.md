@@ -25,6 +25,11 @@ cargo clippy --workspace --tests
 cargo run -p codegen
 ```
 
+The `State` and `Resource` messages are written by hand in
+`sdk/src/proto/state.rs` so that they keep unknown fields. When an update of
+the vendored proto changes either message, update that file to match; a test
+fails until you do.
+
 ## Submitting changes
 
 * Open an issue first for anything beyond a small fix, so we can agree on the

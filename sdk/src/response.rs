@@ -19,6 +19,8 @@ pub const DEFAULT_TTL: Duration = Duration::from_secs(60);
 /// Creates a response to the supplied request.
 ///
 /// The request's tag, desired state, and context are copied to the response.
+/// The copy includes fields a newer Crossplane added to the desired state
+/// that this SDK does not know, see [`crate::proto::UnknownFields`].
 /// Crossplane deletes any previously desired field or resource that is not
 /// copied forward, so always start from this function rather than from an
 /// empty response.
