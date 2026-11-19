@@ -7,6 +7,11 @@
       "matchManagers": ["dockerfile"],
       "matchFileNames": ["example/Dockerfile"],
       "groupName": "example function images"
+    },
+    {
+      "description": "Automerge non-major updates and digest pins once CI passes",
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
+      "automerge": true
     }
   ],
   "customManagers": [
