@@ -102,6 +102,12 @@ with a few deliberate differences:
   `Server::ready`: until it completes, the server reports NOT_SERVING and
   answers RunFunction with UNAVAILABLE, and if it fails, the server stops
   with `Error::NotReady`.
+- **Unknown fields are kept on `State` and `Resource` only.** protobuf-go
+  keeps fields it does not know on every message. This SDK keeps them on the
+  two messages `response::to` copies from the request, so a field a newer
+  Crossplane adds to them passes through a function unchanged.
+  As in Go, replacing a desired resource instead of modifying it in place
+  drops that resource's unknown fields.
 - **Graceful shutdown is built in.** The server drains in-flight requests on
   SIGTERM and SIGINT.
 - **Metrics are Go-compatible, served as OpenMetrics first.** Like

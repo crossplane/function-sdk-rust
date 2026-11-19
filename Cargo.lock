@@ -405,6 +405,7 @@ dependencies = [
  "pbjson-types",
  "prometheus-client",
  "prost",
+ "prost-types",
  "rustls",
  "serde",
  "serde_json",
@@ -897,7 +898,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2bfe0f4c752e450fc2faf62654f1c134747922825d5b04ca717b8874f41a40c0"
 dependencies = [
  "proc-macro2",
- "syn 3.0.4",
+ "syn 3.0.10",
 ]
 
 [[package]]
@@ -959,7 +960,7 @@ dependencies = [
  "pulldown-cmark",
  "pulldown-cmark-to-cmark",
  "regex",
- "syn 3.0.4",
+ "syn 3.0.10",
  "tempfile",
 ]
 
