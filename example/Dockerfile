@@ -1,4 +1,4 @@
-FROM rust:1.100-trixie@sha256:223cc32ddca8f3ee90c436dbc94b6b5f052ea7f9653c5201e9612f08ad7d21b8 AS build
+FROM rust:1.100-trixie@sha256:1f65e0abcce9b449f9533df5994f2a62391059196c481a09b8e1b522dd6d75af AS build
 WORKDIR /src
 COPY . .
 RUN cargo build --release -p example-function
