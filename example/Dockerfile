@@ -3,7 +3,7 @@ WORKDIR /src
 COPY . .
 RUN cargo build --release -p example-function
 
-FROM gcr.io/distroless/cc-debian13@sha256:dac90a25ffe03ebaace90cda886b081e61ab6cd77ac47eda51f7bcc15c320765 AS image
+FROM gcr.io/distroless/cc-debian13@sha256:e8343d4a7da8bb210df0c3ea29de38bbadbba6c773bed0cd8bde506fca3a5c44 AS image
 COPY --from=build /src/target/release/example-function /usr/local/bin/function
 EXPOSE 9443
 USER nonroot:nonroot
